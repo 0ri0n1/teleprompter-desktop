@@ -1,0 +1,25 @@
+To create an icon for the Teleprompter app:
+
+1. Visit one of these online icon converter sites:
+   - https://redketchup.io/icon-converter
+   - https://www.icoconverter.com/
+   - https://onlineconvertfree.com/icon-generator/
+
+2. Upload any image you'd like to use as the app icon (ideally something related to teleprompters or text scrolling)
+
+3. Generate the icon file with at least these sizes:
+   - 16x16
+   - 32x32
+   - 48x48
+   - 64x64
+   - 128x128
+   - 256x256
+
+4. Download the resulting .ico file
+
+5. Name it "icon.ico" and place it in the root of the teleprompter-desktop folder (same location as main.js and package.json)
+
+If you don't have an image to use, consider using a teleprompter or scroll icon. You can search for "teleprompter icon" or "scroll icon" on sites like:
+- https://iconscout.com/
+- https://www.flaticon.com/
+- https://thenounproject.com/ 

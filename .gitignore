@@ -32,6 +32,12 @@ dist/
 build/
 out/
 
+# Portable app directory (contains compiled output)
+portable/
+
+# Large zip files
+*.zip
+
 # macOS-specific files
 .DS_Store
 
