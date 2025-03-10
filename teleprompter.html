@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Teleprompter App</title>
+  
+  <!-- Include Tailwind CSS first to prevent flash of unstyled content -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  
+  <!-- Include React with JSX Runtime, ReactDOM - use development versions for better error messages -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Include Babel for JSX transformation -->
+  <script src="https://unpkg.com/@babel/standalone@7.21.4/babel.min.js"></script>
+  
+  <style>
+    /* Additional styles that might not be covered by Tailwind */
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    /* Custom scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    /* Add a placeholder style to prevent layout shift */
+    #root {
+      min-height: 100vh;
+      background-color: #000;
+    }
+    /* Reading line styling - now absolute positioned within its container */
+    .reading-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-top: 2px solid #ff0000;
+      z-index: 50;
+      pointer-events: none;
+    }
+    /* Making sure the teleprompter container has position relative */
+    .teleprompter-container {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- Loading indicator -->
+    <div class="flex items-center justify-center h-screen bg-black text-white">
+      <div class="text-xl">Loading Teleprompter App...</div>
+    </div>
+  </div>
+
+  <!-- Use text/babel type and proper configuration for Babel -->
+  <script type="text/babel" data-presets="react">
+    // Get React hooks directly
+    const { useState, useRef, useEffect } = React;
+    
+    // Create icons object manually (no need for external library)
+    const icons = {
+      Play: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      ),
+      Pause: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+      ),
+      RotateCcw: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+        </svg>
+      ),
+      FileText: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      ),
+      Save: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+      ),
+      Settings: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      ),
+      Maximize: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+        </svg>
+      ),
+      Minimize: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+        </svg>
+      ),
+      Moon: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      ),
+      Sun: props => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      )
+    };
+
+    const TeleprompterApp = () => {
+      // State variables
+      const [text, setText] = useState('');
+      const [isPlaying, setIsPlaying] = useState(false);
+      const [speed, setSpeed] = useState(2); // scrolling speed from 1-10
+      const [fontSize, setFontSize] = useState(36);
+      const [isMirrored, setIsMirrored] = useState(false);
+      const [isFullscreen, setIsFullscreen] = useState(false);
+      const [darkMode, setDarkMode] = useState(false);
+      const [scrollPosition, setScrollPosition] = useState(0);
+      const [textColor, setTextColor] = useState('#ffffff');
+      const [backgroundColor, setBackgroundColor] = useState('#000000');
+      const [fontFamily, setFontFamily] = useState('Arial');
+      const [lineSpacing, setLineSpacing] = useState(1.5);
+      const [textAlignment, setTextAlignment] = useState('center');
+      const [readingLinePosition, setReadingLinePosition] = useState(50); // Default to 50% from top
+      
+      // Refs
+      const teleprompterRef = useRef(null);
+      const containerRef = useRef(null);
+      const displayRef = useRef(null);
+      const scrollInterval = useRef(null);
+      const textareaRef = useRef(null);
+      const readingLineRef = useRef(null);
+      
+      // Convert speed to actual scroll pixels per interval
+      const getScrollAmount = () => {
+        return speed * 0.5; // Adjust this multiplier as needed
+      };
+      
+      // Explicitly start scrolling
+      const startScrolling = () => {
+        // Clear any existing interval first
+        if (scrollInterval.current) {
+          clearInterval(scrollInterval.current);
+          scrollInterval.current = null;
+        }
+        
+        // Create a new interval
+        scrollInterval.current = setInterval(() => {
+          if (teleprompterRef.current) {
+            teleprompterRef.current.scrollTop += getScrollAmount();
+            handleScroll();
+            
+            // Stop when reaching the end
+            const { scrollTop, scrollHeight, clientHeight } = teleprompterRef.current;
+            if (scrollTop + clientHeight >= scrollHeight) {
+              stopScrolling();
+              setIsPlaying(false);
+            }
+          }
+        }, 30);
+      };
+      
+      // Explicitly stop scrolling
+      const stopScrolling = () => {
+        if (scrollInterval.current) {
+          clearInterval(scrollInterval.current);
+          scrollInterval.current = null;
+        }
+      };
+      
+      // Handle play/pause toggle with explicit controls
+      const togglePlay = () => {
+        const newPlayingState = !isPlaying;
+        setIsPlaying(newPlayingState);
+        
+        if (newPlayingState) {
+          startScrolling();
+        } else {
+          stopScrolling();
+        }
+      };
+      
+      // Reset teleprompter
+      const resetTeleprompter = () => {
+        stopScrolling();
+        setIsPlaying(false);
+        setScrollPosition(0);
+        if (teleprompterRef.current) {
+          teleprompterRef.current.scrollTop = 0;
+        }
+      };
+      
+      // Toggle mirrored mode
+      const toggleMirrored = () => {
+        setIsMirrored(!isMirrored);
+      };
+      
+      // Toggle fullscreen
+      const toggleFullscreen = () => {
+        if (!isFullscreen) {
+          if (containerRef.current.requestFullscreen) {
+            containerRef.current.requestFullscreen();
+          } else if (containerRef.current.mozRequestFullScreen) {
+            containerRef.current.mozRequestFullScreen();
+          } else if (containerRef.current.webkitRequestFullscreen) {
+            containerRef.current.webkitRequestFullscreen();
+          } else if (containerRef.current.msRequestFullscreen) {
+            containerRef.current.msRequestFullscreen();
+          }
+          setIsFullscreen(true);
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+          }
+          setIsFullscreen(false);
+        }
+      };
+      
+      // Toggle dark mode
+      const toggleDarkMode = () => {
+        setDarkMode(!darkMode);
+      };
+      
+      // Handle text change
+      const handleTextChange = (e) => {
+        setText(e.target.value);
+      };
+      
+      // Import text from file
+      const importText = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setText(e.target.result);
+          };
+          reader.readAsText(file);
+        }
+      };
+      
+      // Save text to file
+      const saveText = () => {
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'teleprompter-script.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+      
+      // Update scroll position
+      const handleScroll = () => {
+        if (teleprompterRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = teleprompterRef.current;
+          const newPosition = (scrollTop / (scrollHeight - clientHeight)) * 100;
+          setScrollPosition(newPosition || 0);
+        }
+      };
+      
+      // Handle manual scroll position change
+      const handleScrollPositionChange = (e) => {
+        const newPosition = Number(e.target.value);
+        setScrollPosition(newPosition);
+        if (teleprompterRef.current) {
+          const { scrollHeight, clientHeight } = teleprompterRef.current;
+          teleprompterRef.current.scrollTop = ((scrollHeight - clientHeight) * newPosition) / 100;
+        }
+      };
+      
+      // Check if an input element is focused
+      const isInputFocused = () => {
+        return document.activeElement.tagName === 'TEXTAREA' || 
+               document.activeElement.tagName === 'INPUT' ||
+               document.activeElement.isContentEditable;
+      };
+      
+      // Handle reading line position change
+      const handleReadingLinePositionChange = (e) => {
+        setReadingLinePosition(Number(e.target.value));
+      };
+      
+      // Setup keyboard shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          // Skip keyboard shortcuts if user is typing in an input field
+          if (isInputFocused()) {
+            return;
+          }
+          
+          if (e.code === 'Space') {
+            togglePlay();
+            e.preventDefault();
+          } else if (e.code === 'Escape') {
+            if (isFullscreen) {
+              toggleFullscreen();
+            }
+          } else if (e.code === 'ArrowUp') {
+            setSpeed(prev => Math.min(prev + 0.5, 10));
+            e.preventDefault();
+          } else if (e.code === 'ArrowDown') {
+            setSpeed(prev => Math.max(prev - 0.5, 0.5));
+            e.preventDefault();
+          } else if (e.code === 'ArrowLeft') {
+            if (teleprompterRef.current) {
+              teleprompterRef.current.scrollTop -= 100;
+              handleScroll();
+            }
+            e.preventDefault();
+          } else if (e.code === 'ArrowRight') {
+            if (teleprompterRef.current) {
+              teleprompterRef.current.scrollTop += 100;
+              handleScroll();
+            }
+            e.preventDefault();
+          } else if ((e.ctrlKey || e.metaKey) && e.code === 'Equal') {
+            setFontSize(prev => Math.min(prev + 2, 72));
+            e.preventDefault();
+          } else if ((e.ctrlKey || e.metaKey) && e.code === 'Minus') {
+            setFontSize(prev => Math.max(prev - 2, 12));
+            e.preventDefault();
+          } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyM') {
+            toggleMirrored();
+            e.preventDefault();
+          } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyF') {
+            toggleFullscreen();
+            e.preventDefault();
+          }
+        };
+        
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+          window.removeEventListener('keydown', handleKeyDown);
+        };
+      }, [isFullscreen]);
+      
+      // Cleanup intervals when component unmounts
+      useEffect(() => {
+        return () => {
+          if (scrollInterval.current) {
+            clearInterval(scrollInterval.current);
+            scrollInterval.current = null;
+          }
+        };
+      }, []);
+      
+      // Update scrolling when speed changes
+      useEffect(() => {
+        if (isPlaying) {
+          // Restart scrolling with new speed
+          stopScrolling();
+          startScrolling();
+        }
+      }, [speed]);
+      
+      // Monitor fullscreen changes
+      useEffect(() => {
+        const handleFullscreenChange = () => {
+          setIsFullscreen(
+            document.fullscreenElement ||
+            document.mozFullScreenElement ||
+            document.webkitFullscreenElement ||
+            document.msFullscreenElement
+          );
+        };
+        
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('msfullscreenchange', handleFullscreenChange);
+        
+        return () => {
+          document.removeEventListener('fullscreenchange', handleFullscreenChange);
+          document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+          document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+          document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+        };
+      }, []);
+      
+      // Position the reading line
+      useEffect(() => {
+        if (readingLineRef.current && displayRef.current) {
+          // Update reading line position when container size changes
+          const resizeObserver = new ResizeObserver(() => {
+            const displayHeight = displayRef.current.offsetHeight;
+            const linePosition = (readingLinePosition / 100) * displayHeight;
+            readingLineRef.current.style.top = `${linePosition}px`;
+          });
+          
+          resizeObserver.observe(displayRef.current);
+          
+          // Set initial position
+          const displayHeight = displayRef.current.offsetHeight;
+          const linePosition = (readingLinePosition / 100) * displayHeight;
+          readingLineRef.current.style.top = `${linePosition}px`;
+          
+          return () => {
+            resizeObserver.disconnect();
+          };
+        }
+      }, [readingLinePosition, isFullscreen]);
+      
+      return (
+        <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`} ref={containerRef}>
+          <div className="flex justify-between items-center p-4 bg-gray-800 text-white">
+            <h1 className="text-2xl font-bold">Teleprompter</h1>
+            <div className="flex space-x-2">
+              <button 
+                onClick={toggleDarkMode} 
+                className="p-2 rounded hover:bg-gray-700"
+                title={darkMode ? "Light Mode" : "Dark Mode"}
+              >
+                {darkMode ? <icons.Sun size={20} /> : <icons.Moon size={20} />}
+              </button>
+              <button 
+                onClick={toggleFullscreen} 
+                className="p-2 rounded hover:bg-gray-700"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? <icons.Minimize size={20} /> : <icons.Maximize size={20} />}
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-1 overflow-hidden">
+            {/* Editor Panel */}
+            <div className={`w-1/3 p-4 border-r ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-100'} ${isFullscreen ? 'hidden' : 'flex flex-col'}`}>
+              <textarea
+                ref={textareaRef}
+                className={`flex-1 p-2 rounded w-full ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                value={text}
+                onChange={handleTextChange}
+                placeholder="Enter or paste your script here..."
+              />
+              
+              <div className="flex mt-4 space-x-2">
+                <label className="flex items-center bg-blue-600 text-white px-3 py-1 rounded cursor-pointer hover:bg-blue-700">
+                  <icons.FileText size={16} className="mr-1" />
+                  Import
+                  <input
+                    type="file"
+                    accept=".txt"
+                    onChange={importText}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={saveText}
+                  className="flex items-center bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                  disabled={!text}
+                >
+                  <icons.Save size={16} className="mr-1" />
+                  Save
+                </button>
+              </div>
+              
+              {/* Settings */}
+              <div className={`mt-4 p-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                <h3 className="font-bold mb-2 flex items-center">
+                  <icons.Settings size={16} className="mr-1" />
+                  Display Settings
+                </h3>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm mb-1">Font Size: {fontSize}px</label>
+                    <input
+                      type="range"
+                      min="12"
+                      max="72"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Scroll Speed: {speed.toFixed(1)}</label>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="10"
+                      step="0.5"
+                      value={speed}
+                      onChange={(e) => setSpeed(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Line Spacing: {lineSpacing.toFixed(1)}</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="3"
+                      step="0.1"
+                      value={lineSpacing}
+                      onChange={(e) => setLineSpacing(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Reading Line Position: {readingLinePosition}%</label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="90"
+                      step="1"
+                      value={readingLinePosition}
+                      onChange={handleReadingLinePositionChange}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm mb-1">Text Color</label>
+                      <input
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="w-full h-8"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Background</label>
+                      <input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="w-full h-8"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Font Family</label>
+                    <select
+                      value={fontFamily}
+                      onChange={(e) => setFontFamily(e.target.value)}
+                      className={`w-full p-1 rounded ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                    >
+                      <option value="Arial">Arial</option>
+                      <option value="Verdana">Verdana</option>
+                      <option value="Helvetica">Helvetica</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Courier New">Courier New</option>
+                      <option value="Georgia">Georgia</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Text Alignment</label>
+                    <select
+                      value={textAlignment}
+                      onChange={(e) => setTextAlignment(e.target.value)}
+                      className={`w-full p-1 rounded ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                    >
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="mirror-toggle"
+                      checked={isMirrored}
+                      onChange={toggleMirrored}
+                      className="mr-2"
+                    />
+                    <label htmlFor="mirror-toggle" className="text-sm">Mirror Text (Ctrl+M)</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Teleprompter Display */}
+            <div className={`${isFullscreen ? 'w-full' : 'w-2/3'} flex flex-col teleprompter-container`} ref={displayRef}>
+              {/* Reading Line - contained within the teleprompter display area */}
+              <div ref={readingLineRef} className="reading-line"></div>
+              
+              <div 
+                ref={teleprompterRef}
+                className="flex-1 overflow-y-auto"
+                style={{ backgroundColor }}
+                onScroll={handleScroll}
+              >
+                {/* Text content - with extra padding to allow scrolling */}
+                <div className={`py-64 px-8 whitespace-pre-wrap`}>
+                  <div
+                    style={{ 
+                      fontSize: `${fontSize}px`,
+                      fontFamily,
+                      lineHeight: lineSpacing,
+                      color: textColor,
+                      textAlign: textAlignment,
+                      transform: isMirrored ? 'scaleX(-1)' : 'none'
+                    }}
+                  >
+                    {text || "Your script will appear here. Enter text in the editor to begin."}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Control bar */}
+              <div className={`p-4 flex items-center space-x-4 ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                <button
+                  onClick={togglePlay}
+                  className={`p-2 rounded-full ${isPlaying ? 'bg-red-600' : 'bg-green-600'} text-white`}
+                  title={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying ? <icons.Pause size={20} /> : <icons.Play size={20} />}
+                </button>
+                
+                <button
+                  onClick={resetTeleprompter}
+                  className="p-2 rounded-full bg-gray-600 text-white"
+                  title="Reset"
+                >
+                  <icons.RotateCcw size={20} />
+                </button>
+                
+                <div className="flex-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={scrollPosition}
+                    onChange={handleScrollPositionChange}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="text-sm">
+                  Speed: {speed.toFixed(1)}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer with keyboard shortcuts (hidden in fullscreen) */}
+          {!isFullscreen && (
+            <div className={`p-2 text-xs text-center ${darkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
+              Keyboard Shortcuts: Space (Play/Pause) | Esc (Exit Fullscreen) | ↑/↓ (Speed) | ←/→ (Navigate) | Ctrl+M (Mirror) | Ctrl+F (Fullscreen) | Ctrl+/- (Font Size)
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Directly render without waiting for DOMContentLoaded
+    ReactDOM.render(<TeleprompterApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
