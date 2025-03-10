@@ -26,7 +26,7 @@ A professional desktop teleprompter application built with Electron, React, and 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/teleprompter-desktop.git
+git clone https://github.com/0ri0n1/teleprompter-desktop.git
 
 # Navigate to the project directory
 cd teleprompter-desktop
