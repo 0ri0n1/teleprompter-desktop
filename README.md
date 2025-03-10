@@ -1,131 +1,54 @@
 # Teleprompter Desktop App
 
-A professional-grade teleprompter application packaged as a cross-platform desktop app using Electron. This application allows you to create, edit, and display teleprompter scripts with customizable settings for professional video production.
-
-![Teleprompter App Screenshot](screenshot.png)
+A professional desktop teleprompter application built with Electron, React, and Tailwind CSS. Perfect for creating professional-looking video content.
 
 ## Features
 
-- **Real-time text scrolling** with adjustable speed
-- **Fixed reading line** to guide your reading position
-- **Customizable appearance** (font size, color, background, line spacing)
-- **Adjustable reading line position** to match your camera setup
-- **Text mirroring** for proper teleprompter reflection setups
-- **Fullscreen mode** for distraction-free reading
-- **Dark/light mode** to suit different environments
-- **Import/export scripts** to easily save and load content
-- **Keyboard shortcuts** for hands-free control during recording
-
-## Installation
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (version 14 or higher)
-- npm (comes with Node.js)
-
-### Setup
-
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/teleprompter-desktop.git
-   cd teleprompter-desktop
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-## Running the App
-
-### Development Mode
-
-To run the app in development mode:
-
-```bash
-npx electron .
-```
-
-Or use the npm script:
-
-```bash
-npm start
-```
-
-### Building for Distribution
-
-To create packaged applications for your current platform:
-
-```bash
-npm run dist
-```
-
-This will create installers in the `dist` folder.
-
-For specific platforms:
-
-```bash
-# For Windows
-npm run dist -- --win
-
-# For macOS
-npm run dist -- --mac
-
-# For Linux
-npm run dist -- --linux
-```
+- **Real-Time Scrolling**: Smooth auto-scrolling with adjustable speed (including extremely slow options)
+- **Reading Line Guidance**: Customizable red reading line to help maintain eye position
+- **Rich Text Formatting**: Control font size, family, color, and alignment
+- **Mirroring Support**: Flip text horizontally for professional teleprompter setups
+- **Fullscreen Mode**: Distraction-free presentation
+- **Import/Export**: Load and save scripts as text files
+- **Keyboard Shortcuts**: Intuitive controls for seamless operation
 
 ## Keyboard Shortcuts
 
-| Shortcut | Function |
-|----------|----------|
-| **Space** | Play/Pause scrolling |
-| **Esc** | Exit fullscreen |
-| **↑/↓** | Adjust speed |
-| **←/→** | Navigate through text |
-| **Ctrl+M** | Toggle mirror mode |
-| **Ctrl+F** | Toggle fullscreen |
-| **Ctrl+/-** | Adjust font size |
+- **Space**: Play/Pause scrolling
+- **↑/↓**: Increase/decrease scrolling speed
+- **←/→**: Manual navigation through the script
+- **Ctrl+M**: Toggle mirror mode
+- **Ctrl+F**: Toggle fullscreen
+- **Ctrl++ / Ctrl+-**: Increase/decrease font size
+- **Esc**: Exit fullscreen
 
-## Project Structure
+## Installation
 
-- `main.js` - Electron main process
-- `preload.js` - Preload script for secure context bridge
-- `teleprompter.html` - Main application HTML
-- `package.json` - Project metadata and dependencies
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/teleprompter-desktop.git
 
-## Technology Stack
+# Navigate to the project directory
+cd teleprompter-desktop
 
-- **Electron** - Cross-platform desktop app framework
-- **React** - UI library
-- **Tailwind CSS** - Utility-first CSS framework
-- **Babel** - JavaScript compiler for JSX
+# Install dependencies
+npm install
 
-## Troubleshooting
+# Start the application
+npm start
+```
 
-### Electron Not Found
+## Development
 
-If you get an error like "'electron' is not recognized as an internal or external command":
-
-1. Make sure you've installed dependencies with `npm install`
-2. Try using `npx electron .` to run the app
-3. Check if you're in the correct directory containing package.json
-
-### Building Issues
-
-If you encounter issues when building:
-
-1. Make sure electron-builder is installed: `npm install --save-dev electron-builder`
-2. Check your package.json for correct build configuration
-3. Try running with verbose logging: `npm run dist -- --verbose`
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project uses:
+- **Electron**: For creating the desktop application
+- **React**: For the user interface components
+- **Tailwind CSS**: For styling
+- **Babel**: For JSX transformation
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the ISC License - see the LICENSE file for details.
 
 ## Acknowledgments
 

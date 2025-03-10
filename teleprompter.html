@@ -56,6 +56,11 @@
     .teleprompter-container {
       position: relative;
     }
+    /* Add extra space for text to ensure it starts below the reading line */
+    .teleprompter-text-container {
+      padding-top: 100vh; /* Full viewport height padding at the top */
+      padding-bottom: 100vh; /* Full viewport height padding at the bottom */
+    }
   </style>
 </head>
 <body>
@@ -146,7 +151,7 @@
       // State variables
       const [text, setText] = useState('');
       const [isPlaying, setIsPlaying] = useState(false);
-      const [speed, setSpeed] = useState(2); // scrolling speed from 1-10
+      const [speed, setSpeed] = useState(2); // scrolling speed from 0-10
       const [fontSize, setFontSize] = useState(36);
       const [isMirrored, setIsMirrored] = useState(false);
       const [isFullscreen, setIsFullscreen] = useState(false);
@@ -169,7 +174,10 @@
       
       // Convert speed to actual scroll pixels per interval
       const getScrollAmount = () => {
-        return speed * 0.5; // Adjust this multiplier as needed
+        // More gradual scaling for lower speeds
+        if (speed === 0) return 0;
+        if (speed < 1) return speed * 0.25; // Very slow for values below 1
+        return speed * 0.5; // Original scaling for higher speeds
       };
       
       // Explicitly start scrolling
@@ -180,20 +188,32 @@
           scrollInterval.current = null;
         }
         
-        // Create a new interval
+        // Don't set up interval if speed is 0
+        if (speed === 0) {
+          console.log('Attempted to start scrolling but speed is 0');
+          return;
+        }
+        
+        // Create a new interval - adjust interval timing for smoother slow scrolling
+        const intervalTime = speed < 1 ? 60 : 30; // Slower interval for very low speeds
+        
+        console.log('Setting up scroll interval with speed:', speed, 'and interval time:', intervalTime);
+        
         scrollInterval.current = setInterval(() => {
           if (teleprompterRef.current) {
-            teleprompterRef.current.scrollTop += getScrollAmount();
+            const scrollAmount = getScrollAmount();
+            teleprompterRef.current.scrollTop += scrollAmount;
             handleScroll();
             
             // Stop when reaching the end
             const { scrollTop, scrollHeight, clientHeight } = teleprompterRef.current;
             if (scrollTop + clientHeight >= scrollHeight) {
+              console.log('Reached end of text, stopping auto-scroll');
               stopScrolling();
               setIsPlaying(false);
             }
           }
-        }, 30);
+        }, intervalTime);
       };
       
       // Explicitly stop scrolling
@@ -204,14 +224,22 @@
         }
       };
       
-      // Handle play/pause toggle with explicit controls
+      // Toggle play/pause
       const togglePlay = () => {
         const newPlayingState = !isPlaying;
+        console.log('Toggle Play/Pause:', { wasPlaying: isPlaying, willBePlaying: newPlayingState, speed });
         setIsPlaying(newPlayingState);
         
         if (newPlayingState) {
-          startScrolling();
+          // Only start scrolling if speed is not 0
+          if (speed > 0) {
+            console.log('Starting scrolling with speed:', speed);
+            startScrolling();
+          } else {
+            console.log('Not starting scrolling because speed is 0');
+          }
         } else {
+          console.log('Stopping scrolling');
           stopScrolling();
         }
       };
@@ -324,6 +352,13 @@
         setReadingLinePosition(Number(e.target.value));
       };
       
+      // Update the keyboard shortcut implementation to ensure it properly responds to spacebar
+      const handleSpacebarPress = () => {
+        if (!isInputFocused()) {
+          togglePlay();
+        }
+      };
+      
       // Setup keyboard shortcuts
       useEffect(() => {
         const handleKeyDown = (e) => {
@@ -333,8 +368,8 @@
           }
           
           if (e.code === 'Space') {
-            togglePlay();
-            e.preventDefault();
+            e.preventDefault(); // Prevent default space behavior (like page scroll)
+            handleSpacebarPress();
           } else if (e.code === 'Escape') {
             if (isFullscreen) {
               toggleFullscreen();
@@ -343,7 +378,7 @@
             setSpeed(prev => Math.min(prev + 0.5, 10));
             e.preventDefault();
           } else if (e.code === 'ArrowDown') {
-            setSpeed(prev => Math.max(prev - 0.5, 0.5));
+            setSpeed(prev => Math.max(prev - 0.5, 0));
             e.preventDefault();
           } else if (e.code === 'ArrowLeft') {
             if (teleprompterRef.current) {
@@ -376,7 +411,7 @@
         return () => {
           window.removeEventListener('keydown', handleKeyDown);
         };
-      }, [isFullscreen]);
+      }, [isFullscreen, isPlaying, speed, togglePlay, toggleFullscreen, toggleMirrored, handleSpacebarPress, handleScroll]); // Complete dependency array
       
       // Cleanup intervals when component unmounts
       useEffect(() => {
@@ -391,9 +426,14 @@
       // Update scrolling when speed changes
       useEffect(() => {
         if (isPlaying) {
-          // Restart scrolling with new speed
-          stopScrolling();
-          startScrolling();
+          // If speed is 0, stop scrolling but keep "playing" state
+          if (speed === 0) {
+            stopScrolling();
+          } else {
+            // Restart scrolling with new speed
+            stopScrolling();
+            startScrolling();
+          }
         }
       }, [speed]);
       
@@ -443,6 +483,36 @@
           };
         }
       }, [readingLinePosition, isFullscreen]);
+      
+      // Ensure text starts below the reading line
+      useEffect(() => {
+        if (teleprompterRef.current && readingLineRef.current && displayRef.current) {
+          // Reset the scroll position when text changes or on initial load
+          teleprompterRef.current.scrollTop = 0;
+        }
+      }, [text, fontSize]); // Adding fontSize as a dependency since it affects text layout
+      
+      // When teleprompter is reset or initially rendered, position text correctly
+      useEffect(() => {
+        // Add a small delay to ensure DOM is fully rendered before positioning
+        const timer = setTimeout(() => {
+          if (teleprompterRef.current && readingLineRef.current) {
+            const lineRect = readingLineRef.current.getBoundingClientRect();
+            const containerRect = teleprompterRef.current.getBoundingClientRect();
+            
+            // Calculate position of the first meaningful text relative to the container
+            const textTop = containerRect.top;
+            
+            // Calculate how much to scroll to position the text just below the reading line
+            const initialScroll = Math.max(0, textTop - lineRect.top);
+            
+            // Apply the initial scroll position
+            teleprompterRef.current.scrollTop = initialScroll;
+          }
+        }, 100); // Short delay to ensure rendering is complete
+        
+        return () => clearTimeout(timer);
+      }, [isFullscreen, readingLinePosition]);
       
       return (
         <div className={`w-full h-screen flex flex-col ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`} ref={containerRef}>
@@ -522,9 +592,9 @@
                     <label className="block text-sm mb-1">Scroll Speed: {speed.toFixed(1)}</label>
                     <input
                       type="range"
-                      min="0.5"
+                      min="0"
                       max="10"
-                      step="0.5"
+                      step="0.1"
                       value={speed}
                       onChange={(e) => setSpeed(Number(e.target.value))}
                       className="w-full"
@@ -633,7 +703,7 @@
                 onScroll={handleScroll}
               >
                 {/* Text content - with extra padding to allow scrolling */}
-                <div className={`py-64 px-8 whitespace-pre-wrap`}>
+                <div className={`teleprompter-text-container px-8 whitespace-pre-wrap`}>
                   <div
                     style={{ 
                       fontSize: `${fontSize}px`,
@@ -678,8 +748,8 @@
                   />
                 </div>
                 
-                <div className="text-sm">
-                  Speed: {speed.toFixed(1)}
+                <div className={`text-sm ${speed === 0 ? 'text-red-500 font-semibold' : ''}`}>
+                  Speed: {speed.toFixed(1)} {speed === 0 && "(Paused)"}
                 </div>
               </div>
             </div>
